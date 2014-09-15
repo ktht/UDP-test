@@ -32,8 +32,8 @@ int                udp_socket = -1;
 int                port_number = -1;
 char               server_addr_name[32];
 unsigned int       enable_multicast = 0;
-unsigned int       enable_loopback = 0;
-unsigned int       enable_broadcast = 0;
+int                enable_loopback = 0;
+int                enable_broadcast = 0;
 unsigned int       socket_tos = 0;
 unsigned long      timeout = 0;
 unsigned long long interval = DEFAULT_INTERVAL;
@@ -66,6 +66,8 @@ void intHandler(int return_code) {
         /* flush and close the file */
         fflush(log_file);
         fclose(log_file);
+        
+        LOG("Communication end.\n");
     }
     exit(return_code);
 }
@@ -160,12 +162,8 @@ int main(int argc, char ** argv) {
     if (enable_multicast) {
         mcast_add_membership_on_socket(udp_socket, server_addr_name);
     }
-    if (enable_loopback) {
-        mcast_enable_loop_on_socket(udp_socket, enable_loopback);
-    }
-    if (enable_broadcast) {
-        bcast_enable_on_socket(udp_socket, enable_broadcast);
-    }
+    mcast_enable_loop_on_socket(udp_socket, enable_loopback);
+    bcast_enable_on_socket(udp_socket, enable_broadcast);
     
     /* set timeout */
     const unsigned int timeout_s  = (unsigned long) (timeout / 1E3);

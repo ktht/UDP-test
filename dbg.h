@@ -1,7 +1,7 @@
 #ifndef __debug_header__
 #define __debug_header__
 
-#include <stdio.h> // fprintf()
+#include <stdio.h> // fprintf(), stderr, stdout
 
 #define TRUE  1
 #define FALSE 0

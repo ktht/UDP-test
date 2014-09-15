@@ -72,9 +72,9 @@ void mcast_enable_loop_on_socket(const int socket,
 }
 
 void bcast_enable_on_socket(const int socket,
-                            const unsigned int enable_broadcast) {
+                            const int enable_broadcast) {
     if (setsockopt(socket, SOL_SOCKET, SO_BROADCAST,
-                      & enable_broadcast, sizeof(unsigned char)) < 0) {
+                      & enable_broadcast, sizeof(enable_broadcast))) {
         fprintf(stderr, "Error on setting broadcast on socket.\n");
         exit(EXIT_FAILURE);
     }

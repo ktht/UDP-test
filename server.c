@@ -15,7 +15,6 @@
  "  -p <port number>                -- port number \n" \
  "  [-w <timeout>] (=0)             -- timeout between sending the packets (ms)\n" \
  "  [-m <multicast address>]        -- enable multicast\n" \
- "  [-b]                            -- enable broadcast\n" \
  "  [-l]                            -- enable loopback\n"
 
 /* initialize variables */
@@ -23,8 +22,7 @@ int                udp_socket = -1;
 int                port_number = -1;
 char               multicast_ip[32];
 unsigned int       enable_multicast = 0;
-unsigned int       enable_broadcast = 0;
-unsigned int       enable_loopback = 0;
+int                enable_loopback = 0;
 char               buffer[BUFFER_SIZE];
 
 void intHandler(int return_code) {
@@ -42,7 +40,7 @@ int main(int argc, char ** argv) {
     
     /* parse command line arguments */
     int cmd_flag, err_count = 0;
-    while ((cmd_flag = getopt(argc, argv, ":p:n:m:bl")) != -1) {
+    while ((cmd_flag = getopt(argc, argv, ":p:m:l")) != -1) {
         switch (cmd_flag) {
             case 'p':
                 port_number = strtol(optarg, NULL, 10);
@@ -50,9 +48,6 @@ int main(int argc, char ** argv) {
             case 'm':
                 enable_multicast = 1;
                 strcpy(multicast_ip, optarg);
-                break;
-            case 'b':
-                enable_broadcast = 1;
                 break;
             case 'l':
                 enable_loopback = 1;
@@ -77,7 +72,6 @@ int main(int argc, char ** argv) {
     LOG("Enable multicast:  %s\n", enable_multicast ? "yes" : "no");
     if(enable_multicast)
         LOG("Multicast address: %s\n", multicast_ip);
-    LOG("Enable broadcast:  %s\n", enable_broadcast ? "yes" : "no");
     LOG("Enable loopback:   %s\n", enable_loopback ? "yes" : "no");
     
     /* create sockets */
@@ -94,13 +88,11 @@ int main(int argc, char ** argv) {
         return EXIT_FAILURE;
     }
     
-    /* add to broad/multicast if possible */
+    /* add to multicast if possible */
     if (enable_multicast) {
         mcast_add_membership_on_socket(udp_socket, multicast_ip);
     }
-    if (enable_loopback) {
-        mcast_enable_loop_on_socket(udp_socket, enable_loopback);
-    }
+    mcast_enable_loop_on_socket(udp_socket, enable_loopback);
     
     /* associate the socket with a port */
     LOG("Bind the socket.\n");
