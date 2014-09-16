@@ -233,7 +233,7 @@ int main(int argc, char ** argv) {
             }
             
             /* terminate if enough sent */
-            if (total_responses >= max_responses)
+            if (total_responses >= max_responses && max_responses)
                 break;
         }
     }
