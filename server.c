@@ -2,6 +2,7 @@
 #include <stdio.h> // fprintf(), stderr
 #include <unistd.h> // getopt(), optarg, optopt
 #include <signal.h> // signal(), SIGINT
+#include <time.h> // timespec, clock_gettime(), CLOCK_MONOTONIC
 
 #include <netinet/in.h> // sockaddr_in, PF_INET, IPPROTO_UDP
 #include <sys/socket.h> // SOCK_DGRAM, socket(), sendto(), recvfrom(), close()
@@ -15,7 +16,10 @@
  "  -p <port number>                -- port number \n" \
  "  [-w <timeout>] (=0)             -- timeout between sending the packets (ms)\n" \
  "  [-m <multicast address>]        -- enable multicast\n" \
- "  [-l]                            -- enable loopback\n"
+ "  [-f] <file name>                -- log file name\n" \
+ "  [-l]                            -- enable loopback\n" \
+ "  [-x]                            -- do not reply\n" \
+ "  [-r]                            -- record system clock (default: time difference)\n"
 
 /* initialize variables */
 int                udp_socket = -1;
@@ -23,13 +27,35 @@ int                port_number = -1;
 char               multicast_ip[32];
 unsigned int       enable_multicast = 0;
 int                enable_loopback = 0;
+unsigned int       enable_reply = 0;
+unsigned int       record_sys_clock = 0;
+unsigned long long seq_num = 0;
 char               buffer[BUFFER_SIZE];
+FILE *             log_file = NULL;
 
 void intHandler(int return_code) {
     if(enable_multicast)
         mcast_drop_membership_on_socket(udp_socket, multicast_ip);
     if(udp_socket)
         close(udp_socket);
+    if(log_file) {
+        
+        /* print statistics */
+        fprintf(log_file, "Packets received: %llu\n", seq_num);
+        
+        /* print current time */
+        time_t raw_time;
+        struct tm * time_info;
+        time(& raw_time);
+        time_info = localtime(& raw_time);
+        fprintf(log_file, "%s\n", asctime(time_info));
+        
+        /* flush and close the file */
+        fflush(log_file);
+        fclose(log_file);
+        
+        LOG("Communication end.\n");
+    }
     exit(return_code);
 }
 
@@ -40,7 +66,7 @@ int main(int argc, char ** argv) {
     
     /* parse command line arguments */
     int cmd_flag, err_count = 0;
-    while ((cmd_flag = getopt(argc, argv, ":p:m:l")) != -1) {
+    while ((cmd_flag = getopt(argc, argv, ":p:m:f:lxr")) != -1) {
         switch (cmd_flag) {
             case 'p':
                 port_number = strtol(optarg, NULL, 10);
@@ -49,8 +75,17 @@ int main(int argc, char ** argv) {
                 enable_multicast = 1;
                 strcpy(multicast_ip, optarg);
                 break;
+            case 'f':
+                log_file = fopen(optarg, "w");
+                break;
             case 'l':
                 enable_loopback = 1;
+                break;
+            case 'x':
+                enable_reply = 1;
+                break;
+            case 'r':
+                record_sys_clock = 1;
                 break;
             case ':':
                 fprintf(stderr, "Option -%c requires an operand.\n", optopt);
@@ -68,11 +103,13 @@ int main(int argc, char ** argv) {
     }
     
     /* print information */
-    LOG("Port number:       %i\n", port_number);
-    LOG("Enable multicast:  %s\n", enable_multicast ? "yes" : "no");
+    LOG("Port number:         %i\n", port_number);
+    LOG("Enable multicast:    %s\n", enable_multicast ? "yes" : "no");
     if(enable_multicast)
-        LOG("Multicast address: %s\n", multicast_ip);
-    LOG("Enable loopback:   %s\n", enable_loopback ? "yes" : "no");
+        LOG("Multicast address:   %s\n", multicast_ip);
+    LOG("Enable loopback:     %s\n", enable_loopback ? "yes" : "no");
+    LOG("Enable reply:        %s\n", enable_reply ? "yes" : "no");
+    LOG("Record system clock: %s\n", record_sys_clock ? "yes" : "no");
     
     /* create sockets */
     struct sockaddr_in socket_addr;
@@ -105,6 +142,7 @@ int main(int argc, char ** argv) {
     LOG("Start echo server.\n");
     int read_size = 0;
     while (TRUE) {
+        
         /* receive signal from the client */
         read_size = recvfrom(udp_socket, buffer, BUFFER_SIZE, 0,
                              (struct sockaddr *) & peer_addr, & peer_addr_size);
@@ -116,14 +154,31 @@ int main(int argc, char ** argv) {
         if(msg -> header != MSG_HEADER)
             continue;
         
+        /* get current time */
+        struct timespec present_time;
+        clock_gettime(CLOCK_MONOTONIC, & present_time);
+        
         LOG("Recieved packet from: %s\tPacket nr: %llu\n",
             inet_ntoa(peer_addr.sin_addr), msg -> seq_num);
+        ++seq_num;
         
-        /* send back to the client */
-        if (sendto(udp_socket, buffer, read_size, 0,
-                    (struct sockaddr *) & peer_addr, peer_addr_size) == -1) {
-            fprintf(stderr, "Error sending packet to %s\n",
-                            inet_ntoa(peer_addr.sin_addr));
+        /* write results */
+        if (log_file) {
+            if (record_sys_clock) {
+                const unsigned long long current_time = present_time.tv_sec * 1E9 + present_time.tv_nsec;
+                fprintf(log_file, "%llu,%llu\n", msg -> seq_num, current_time);
+            }
+            fflush(log_file);
+        }
+        
+        /* if reply to the client */
+        if (enable_reply) {
+            /* send back to the client */
+            if (sendto(udp_socket, buffer, read_size, 0,
+                        (struct sockaddr *) & peer_addr, peer_addr_size) == -1) {
+                fprintf(stderr, "Error sending packet to %s\n",
+                                inet_ntoa(peer_addr.sin_addr));
+            }
         }
     }
     

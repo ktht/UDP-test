@@ -21,11 +21,12 @@
   "  [-t <ToS code>] (=0)            -- ToS code (decimal)\n" \
   "  [-i <interval>] (=1E7)          -- time interval between packets (ns)\n" \
   "  [-f <file name>]                -- log file name\n" \
-  "  [-n <number of packets>] (=0)   -- number of packets to send (default inf)\n" \
+  "  [-n <number of packets>] (=0)   -- number of packets to send (default: inf)\n" \
   "  [-m]                            -- enable multicast\n" \
   "  [-b]                            -- enable broadcast\n" \
-  "  [-l]                            -- enable loopback\n"
-
+  "  [-l]                            -- enable loopback\n" \
+  "  [-r]                            -- record system clock (default: time difference)\n" \
+  "  [-R]                            -- receive only mode\n"
 
 /* initialize variables */
 int                udp_socket = -1;
@@ -34,6 +35,8 @@ char               server_addr_name[32];
 unsigned int       enable_multicast = 0;
 int                enable_loopback = 0;
 int                enable_broadcast = 0;
+unsigned int       record_sys_clock = 0;
+unsigned int       receive_only = 0;
 unsigned int       socket_tos = 0;
 unsigned long      timeout = 0;
 unsigned long long interval = DEFAULT_INTERVAL;
@@ -79,7 +82,7 @@ int main(int argc, char ** argv) {
     
     /* parse command line arguments */
     int cmd_flag, err_count = 0, server_addr_given = 0;
-    while ((cmd_flag = getopt(argc, argv, ":p:s:w:t:i:f:n:mbl")) != -1) {
+    while ((cmd_flag = getopt(argc, argv, ":p:s:w:t:i:f:n:mblrR")) != -1) {
         switch (cmd_flag) {
             case 'p':
                 port_number = strtol(optarg, NULL, 10);
@@ -112,6 +115,12 @@ int main(int argc, char ** argv) {
             case 'l':
                 enable_loopback = 1;
                 break;
+            case 'r':
+                record_sys_clock = 1;
+                break;
+            case 'R':
+                receive_only = 1;
+                break;
             case ':':
                 fprintf(stderr, "Option -%c requires an operand.\n", optopt);
                 ++err_count;
@@ -137,6 +146,8 @@ int main(int argc, char ** argv) {
     LOG("Enable multicast:      %s\n", enable_multicast ? "yes" : "no");
     LOG("Enable broadcast:      %s\n", enable_broadcast ? "yes" : "no");
     LOG("Enable loopback:       %s\n", enable_loopback ? "yes" : "no");
+    LOG("Record system clock:   %s\n", record_sys_clock ? "yes" : "no");
+    LOG("Receive packets only:  %s\n", receive_only ? "yes" : "no");
     LOG("Payload size:          %u\n", payload_size);
     
     /* create socket */
@@ -201,23 +212,26 @@ int main(int argc, char ** argv) {
             /* save sent time */
             sent_time = present_time;
             
-            /* send the packet */
-            if (sendto(udp_socket, &msg, sizeof(struct message) + payload_size, 0,
-                      (struct sockaddr *) & server_addr, server_addr_size) == -1) {
-                fprintf(stderr, "Error on sending UDP packet.\n");
+            /* send packets only if to do so */
+            if (receive_only != 1) {
+                /* send the packet */
+                if (sendto(udp_socket, &msg, sizeof(struct message) + payload_size, 0,
+                        (struct sockaddr *) & server_addr, server_addr_size) == -1) {
+                    fprintf(stderr, "Error on sending UDP packet.\n");
+                }
+                
+                LOG("Sent packet number %llu to %s.\n", seq_num - 1, server_addr_name);
             }
             
-            /* get response from the server */
+            /* get response from the server/multicast address */
             read_size = recvfrom(udp_socket, buffer, BUFFER_SIZE, 0,
                                  (struct sockaddr *) & server_addr, & server_addr_size);
             if (read_size < 1)
                 break;
             
-            /* get time difference */
+            /* get current time */
             const struct message * response = (struct message *) buffer;
             clock_gettime(CLOCK_MONOTONIC, & present_time);
-            const long long int time_difference = (present_time.tv_sec - response -> sec) * 1E9 +
-                                                  (present_time.tv_nsec - response -> nsec);
             
             /* check if the packet has gone missing */
             if (response -> seq_num != seq_num - 1) {
@@ -227,8 +241,19 @@ int main(int argc, char ** argv) {
             ++total_responses;
             
             /* write results */
-            if(log_file) {
-                fprintf(log_file, "%llu,%.3f\n", seq_num - 1, time_difference / 1E3);
+            if (log_file) {
+                if (record_sys_clock) {
+                    const unsigned long long current_time = present_time.tv_sec * 1E9 +
+                                                            present_time.tv_nsec;
+                    fprintf(log_file, "%llu,%llu\n", seq_num - 1, current_time);
+                }
+                else {
+                    const unsigned long long time_difference =
+                                (present_time.tv_sec - response -> sec) * 1E9 +
+                                (present_time.tv_nsec - response -> nsec);
+                    fprintf(log_file, "%llu,%.3f\n", seq_num - 1, time_difference / 1E3);
+                }
+                
                 fflush(log_file);
             }
             
