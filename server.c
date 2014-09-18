@@ -158,15 +158,22 @@ int main(int argc, char ** argv) {
         struct timespec present_time;
         clock_gettime(CLOCK_MONOTONIC, & present_time);
         
+        unsigned long long msg_seq_num =
+            #ifdef ARM
+                swap_uint64(msg -> seq_num)
+            #else
+                msg -> seq_num
+            #endif
+        ;
         LOG("Recieved packet from: %s\tPacket nr: %llu\n",
-            inet_ntoa(peer_addr.sin_addr), msg -> seq_num);
+            inet_ntoa(peer_addr.sin_addr), msg_seq_num);
         ++seq_num;
         
         /* write results */
         if (log_file) {
             if (record_sys_clock) {
                 const unsigned long long current_time = present_time.tv_sec * 1E9 + present_time.tv_nsec;
-                fprintf(log_file, "%llu,%llu\n", msg -> seq_num, current_time);
+                fprintf(log_file, "%llu,%llu\n", msg_seq_num, current_time);
             }
             fflush(log_file);
         }

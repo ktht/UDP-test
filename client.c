@@ -208,7 +208,14 @@ int main(int argc, char ** argv) {
             msg.header = MSG_HEADER;
             msg.sec = present_time.tv_sec;
             msg.nsec = present_time.tv_nsec;
-            msg.seq_num = seq_num++;
+            msg.seq_num =
+                #ifdef ARM
+                    swap_uint64(seq_num)
+                #else
+                    seq_num
+                #endif
+            ;
+            seq_num++;
             
             /* save sent time */
             sent_time = present_time;
@@ -238,7 +245,14 @@ int main(int argc, char ** argv) {
             clock_gettime(CLOCK_MONOTONIC, & present_time);
             
             /* check if the packet has gone missing */
-            if (response -> seq_num != seq_num - 1) {
+            unsigned long long response_seq_num =
+                #ifdef ARM
+                    swap_uint64(response -> seq_num)
+                #else
+                    response -> seq_num
+                #endif
+            ;
+            if (response_seq_num != seq_num - 1) {
                 fprintf(stderr, "Packet no %llu has gone missing.\n", seq_num - 1);
                 ++missing_packages;
             }
