@@ -151,8 +151,9 @@ int main(int argc, char ** argv) {
     LOG("Payload size:          %u\n", payload_size);
     
     /* create socket */
-    struct sockaddr_in server_addr;
+    struct sockaddr_in server_addr, rcv_addr;
     socklen_t server_addr_size = sizeof(struct sockaddr_in);
+    socklen_t rcv_addr_size = sizeof(struct sockaddr_in);
     
     /* initialize socket */
     LOG("Initialize socket.\n");
@@ -225,9 +226,12 @@ int main(int argc, char ** argv) {
             
             /* get response from the server/multicast address */
             read_size = recvfrom(udp_socket, buffer, BUFFER_SIZE, 0,
-                                 (struct sockaddr *) & server_addr, & server_addr_size);
+                                 (struct sockaddr *) & rcv_addr, & rcv_addr_size);
             if (read_size < 1)
                 break;
+            if (receive_only) {
+                LOG("Received packet number %llu from %s.\n", seq_num - 1, server_addr_name);
+            }
             
             /* get current time */
             const struct message * response = (struct message *) buffer;

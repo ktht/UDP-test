@@ -18,7 +18,7 @@
  "  [-m <multicast address>]        -- enable multicast\n" \
  "  [-f] <file name>                -- log file name\n" \
  "  [-l]                            -- enable loopback\n" \
- "  [-x]                            -- do not reply\n" \
+ "  [-x]                            -- enable reply\n" \
  "  [-r]                            -- record system clock (default: time difference)\n"
 
 /* initialize variables */

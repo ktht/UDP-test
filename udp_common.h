@@ -64,8 +64,9 @@ void mcast_drop_membership_on_socket(const int socket,
 
 void mcast_enable_loop_on_socket(const int socket,
                                  const unsigned int enable_loopback) {
+    unsigned char do_enable = (unsigned char) enable_loopback;
     if (setsockopt(socket, IPPROTO_IP, IP_MULTICAST_LOOP,
-                   (unsigned char *) & enable_loopback, sizeof(unsigned char)) < 0) {
+                   & do_enable, sizeof(do_enable)) < 0) {
         fprintf(stderr, "Error on setting multicast loopback on socket.\n");
         exit(EXIT_FAILURE);
     }
