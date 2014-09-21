@@ -3,8 +3,7 @@
 
 #include <stdio.h> // fprintf(), stderr, stdout
 
-#define TRUE  1
-#define FALSE 0
+typedef enum { FALSE, TRUE } bool;
 
 #ifdef DEBUG
         #define _DEBUG 1
