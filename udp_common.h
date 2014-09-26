@@ -4,7 +4,7 @@
 #include <stdlib.h> // EXIT_FAILURE, exit()
 #include <stdio.h>  // fprintf(), stderr
 #include <string.h> // memset()
-#include <time.h>   // timeval
+#include <time.h>   // timeval, CLOCK_MONOTONIC, CLOCK_MONOTONIC_RAW
 
 #include <netinet/in.h> // sockaddr_in, ip_mreq, INADDR_ANY, IPPROTO_IP
                         // IP_ADD_MEMBERSHIP, IP_DROP_MEMBERSHIP, IP_MULTICAST_LOOP
@@ -15,6 +15,12 @@
 #define DEFAULT_INTERVAL   ((u_ll) 1E7)
 #define DSRD_PKG_SIZE      (86)
 #define MSG_HEADER         0xFEFEFEFE
+
+#ifdef CLOCK_MONOTONIC_RAW
+    #define AVAILABLE_MONOTONIC_CLOCK CLOCK_MONOTONIC_RAW
+#else
+    #define AVAILABLE_MONOTONIC_CLOCK CLOCK_MONOTONIC
+#endif
 
 typedef unsigned int       u_int;
 typedef unsigned long      u_long;

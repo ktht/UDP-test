@@ -192,7 +192,7 @@ int main(int argc, char ** argv) {
 
     /* set time variables */
     struct timespec sent_time;
-    clock_gettime(CLOCK_MONOTONIC, & sent_time);
+    clock_gettime(AVAILABLE_MONOTONIC_CLOCK, & sent_time);
 
     /* talk to server */
     LOG("Start communicating with the server.\n");
@@ -202,7 +202,7 @@ int main(int argc, char ** argv) {
 
         /* get current time */
         struct timespec present_time;
-        clock_gettime(CLOCK_MONOTONIC, & present_time);
+        clock_gettime(AVAILABLE_MONOTONIC_CLOCK, & present_time);
 
         /* if enough time is passed */
         if ((present_time.tv_nsec + present_time.tv_sec * 1E9) -
@@ -229,7 +229,7 @@ int main(int argc, char ** argv) {
             }
 
             /* get current time */
-            clock_gettime(CLOCK_MONOTONIC, & present_time);
+            clock_gettime(AVAILABLE_MONOTONIC_CLOCK, & present_time);
 
             /* save sent time */
             sent_time = present_time;

@@ -150,7 +150,7 @@ int main(int argc, char ** argv) {
 
         /* get current time */
         struct timespec present_time;
-        clock_gettime(CLOCK_MONOTONIC, & present_time);
+        clock_gettime(AVAILABLE_MONOTONIC_CLOCK, & present_time);
 
         u_ll msg_seq_num =
             #ifdef ARM
